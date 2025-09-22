@@ -1,4 +1,5 @@
 local utils = require("pr-tools.utils")
+local chatgpt = require("pr-tools.chat-gpt")
 local Path = require("plenary.path")
 local popup = require("plenary.popup")
 
@@ -98,6 +99,45 @@ function M.create_slack_pr_link()
 	else
 		vim.notify("Unsupported OS for clipboard copy", vim.log.levels.ERROR)
 	end
+end
+
+function M.fill_pr_template()
+	-- 1️⃣ Load template
+	local template_lines = {}
+	local template_path = Path:new(".github/pull_request_template.md")
+	if template_path:exists() then
+		template_lines = template_path:readlines()
+	else
+		vim.notify("No PR template found, starting empty", vim.log.levels.INFO)
+	end
+
+	-- 2️⃣ Get diff
+	local diff = table.concat(vim.fn.systemlist("git diff origin/main...HEAD"), "\n")
+
+	-- 3️⃣ Construct prompt
+	local prompt = table.concat(template_lines, "\n") ..
+		"\n\nFill out the PR template based on the following diff:\n" ..
+		diff
+
+	-- 4️⃣ Call ChatGPT
+	chatgpt.call_chatgpt(prompt, function(response)
+		-- Open floating buffer with filled template
+		local bufnr = vim.api.nvim_create_buf(true, false)
+		vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, vim.split(response, "\n"))
+		vim.bo[bufnr].filetype = "markdown"
+		vim.bo[bufnr].swapfile = false
+		vim.bo[bufnr].bufhidden = "wipe"
+
+		popup.create(bufnr, {
+			title = "Auto-filled PR Template",
+			highlight = "Normal",
+			line = math.floor((vim.o.lines - 20) / 2),
+			col = math.floor((vim.o.columns - 80) / 2),
+			minwidth = 80,
+			minheight = 20,
+			border = true,
+		})
+	end)
 end
 
 function M.ignore_this()

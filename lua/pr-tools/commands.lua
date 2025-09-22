@@ -26,6 +26,14 @@ function M.setup()
 			nargs = 0
 		}
 	)
+
+	vim.api.nvim_create_user_command(
+		"ChatGptPr",
+		function() api.fill_pr_template() end,
+		{
+			nargs = 0
+		}
+	)
 end
 
 return M
