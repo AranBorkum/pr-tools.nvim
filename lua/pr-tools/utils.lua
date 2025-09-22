@@ -1,3 +1,4 @@
+local popup = require("plenary.popup")
 local M = {}
 
 function M.copy_link_macos(html_hex, escaped_md)
@@ -74,6 +75,94 @@ function M.copy_link_windows(emoji, md)
 	else
 		vim.notify("Clipboard utility 'powershell' not found", vim.log.levels.ERROR)
 	end
+end
+
+function M.open_single_line_floating_text_entry(prompt, width, height)
+	local buf = vim.api.nvim_create_buf(false, true)
+	vim.api.nvim_buf_set_option(buf, 'buftype', 'prompt')
+	vim.fn.prompt_setprompt(buf, prompt)
+
+	-- Get editor dimensions
+	local width = width or 40
+	local height = height or 1
+	local editor_width = vim.o.columns
+	local editor_height = vim.o.lines
+
+	-- Calculate centered position
+	local row = math.floor((editor_height - height) / 2)
+	local col = math.floor((editor_width - width) / 2)
+
+	-- Open floating window in the center
+	local win = vim.api.nvim_open_win(buf, true, {
+		relative = 'editor',
+		width = width,
+		height = height,
+		row = row,
+		col = col,
+		style = 'minimal',
+		border = 'single',
+	})
+
+	-- Start in insert mode
+	vim.api.nvim_command("startinsert")
+
+	-- Handle input on <CR>
+	vim.fn.prompt_setcallback(buf, function(text)
+		print("You typed: " .. text)
+		vim.api.nvim_win_close(win, true)
+	end)
+end
+
+function M.git_root()
+	local handle = io.popen("git rev-parse --show-toplevel 2> /dev/null")
+	if handle then
+		local result = handle:read("*a")
+		handle:close()
+		result = result:gsub("%s+$", "")
+		return result ~= "" and result or nil
+	end
+	return nil
+end
+
+-- Read a file into a table of lines
+function M.read_file_lines(path)
+	local lines = {}
+	local f = io.open(path, "r")
+	if not f then return nil end
+	for line in f:lines() do
+		table.insert(lines, line)
+	end
+	f:close()
+	return lines
+end
+
+function M.create_window()
+	log.trace("_create_window()")
+	local width = 80
+	local height = 30
+	local borderchars = { "─", "│", "─", "│", "╭", "╮", "╯", "╰" }
+	local bufnr = vim.api.nvim_create_buf(false, false)
+
+	local Harpoon_cmd_win_id, win = popup.create(bufnr, {
+		title = "",
+		highlight = "",
+		line = math.floor(((vim.o.lines - height) / 2) - 1),
+		col = math.floor((vim.o.columns - width) / 2),
+		minwidth = width,
+		minheight = height,
+		borderchars = borderchars,
+	})
+
+	vim.api.nvim_win_set_option(
+		win.border.win_id,
+		"winhl",
+		"acwrite"
+	)
+
+	return {
+		bufnr = bufnr,
+		win_id = Harpoon_cmd_win_id,
+	}
 end
 
 return M

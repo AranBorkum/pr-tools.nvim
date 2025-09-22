@@ -1,4 +1,6 @@
 local utils = require("pr-tools.utils")
+local Path = require("plenary.path")
+local popup = require("plenary.popup")
 
 local M = {}
 
@@ -96,6 +98,76 @@ function M.create_slack_pr_link()
 	else
 		vim.notify("Unsupported OS for clipboard copy", vim.log.levels.ERROR)
 	end
+end
+
+function M.ignore_this()
+	local lines = {}
+
+	-- 2️⃣ Otherwise try PR template
+	local template_path = Path:new(".github/pull_request_template.md")
+	if template_path:exists() then
+		lines = template_path:readlines()
+	else
+		-- 3️⃣ Fallback to empty buffer
+		lines = {}
+		vim.notify("No PR template or temp file found — opening empty buffer", vim.log.levels.INFO)
+	end
+
+	-- create a normal, listed buffer
+	local bufnr = vim.api.nvim_create_buf(true, false)
+	vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, lines)
+
+	-- buffer settings
+	vim.bo[bufnr].filetype = "markdown"
+	vim.bo[bufnr].swapfile = false
+	vim.bo[bufnr].bufhidden = "wipe"
+
+	-- give it a real temporary filename so :w and :wq work
+	local tmpfile = vim.fn.tempname() .. ".md"
+	vim.api.nvim_buf_set_name(bufnr, tmpfile)
+
+	-- open floating window with plenary.popup
+	local win_id, _ = popup.create(bufnr, {
+		title = "PR Template (tmp)",
+		highlight = "Normal",
+		line = math.floor((vim.o.lines - 20) / 2),
+		col = math.floor((vim.o.columns - 80) / 2),
+		minwidth = 80,
+		minheight = 20,
+		border = true,
+	})
+
+	-- Close floating window on BufUnload
+	vim.api.nvim_create_autocmd("BufUnload", {
+		buffer = bufnr,
+		callback = function()
+			if vim.api.nvim_win_is_valid(win_id) then
+				vim.api.nvim_win_close(win_id, true)
+			end
+		end,
+	})
+
+	-- Run gh pr edit asynchronously only on save
+	vim.api.nvim_create_autocmd("BufWritePost", {
+		buffer = bufnr,
+		callback = function()
+			local handle
+			local cmd = { "gh", "pr", "edit", "--body-file", tmpfile }
+			vim.notify("Updating PR body")
+			handle = vim.loop.spawn(cmd[1], { args = { cmd[2], cmd[3], cmd[4], cmd[5] } },
+				function(code, _)
+					vim.schedule(function()
+						if code == 0 then
+							vim.notify("PR body updated via gh CLI")
+						else
+							vim.notify("gh pr edit failed (code " .. code .. ")", vim.log.levels.ERROR)
+						end
+					end)
+					handle:close()
+				end
+			)
+		end,
+	})
 end
 
 return M
