@@ -1,0 +1,1 @@
+require("pr-tools").setup()
