@@ -133,7 +133,7 @@ function M.ignore_this()
 		line = math.floor((vim.o.lines - 20) / 2),
 		col = math.floor((vim.o.columns - 80) / 2),
 		minwidth = 80,
-		minheight = 20,
+		minheight = 60,
 		border = true,
 	})
 
