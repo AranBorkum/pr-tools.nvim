@@ -26,6 +26,14 @@ function M.setup()
 			nargs = 0
 		}
 	)
+
+	vim.api.nvim_create_user_command(
+		"CreatePullRequest",
+		function () api.create_pull_request() end,
+		{
+			nargs = 0
+		}
+	)
 end
 
 return M

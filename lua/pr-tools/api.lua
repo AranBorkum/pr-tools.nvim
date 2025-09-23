@@ -5,16 +5,12 @@ local popup = require("plenary.popup")
 local M = {}
 
 function M.open_pr_in_browser()
-	local pr_json = vim.fn.system(
-		"gh pr view --json title,number,headRepository,headRepositoryOwner,url,additions,deletions"
-	)
+	local pr_json =
+		vim.fn.system("gh pr view --json title,number,headRepository,headRepositoryOwner,url,additions,deletions")
 
 	local ok, pr = pcall(vim.fn.json_decode, pr_json)
 	if not ok or not pr then
-		vim.notify(
-			"Failed to parse PR info (invalid JSON): " .. (pr_json or ""),
-			vim.log.levels.ERROR
-		)
+		vim.notify("Failed to parse PR info (invalid JSON): " .. (pr_json or ""), vim.log.levels.ERROR)
 		return
 	end
 	local sysname = vim.loop.os_uname().sysname
@@ -36,35 +32,20 @@ function M.create_slack_pr_link()
 
 	-- Get PR info as JSON
 	if vim.fn.executable("gh") ~= 1 then
-		vim.notify(
-			"GitHub CLI ('gh') not found. Please install it to use this feature.",
-			vim.log.levels.ERROR
-		)
+		vim.notify("GitHub CLI ('gh') not found. Please install it to use this feature.", vim.log.levels.ERROR)
 		return
 	end
-	local pr_json = vim.fn.system(
-		"gh pr view --json title,number,headRepository,headRepositoryOwner,url,additions,deletions"
-	)
+	local pr_json =
+		vim.fn.system("gh pr view --json title,number,headRepository,headRepositoryOwner,url,additions,deletions")
 	-- Check for command failure (gh outputs errors to stdout if not piped)
-	if
-		not pr_json
-		or pr_json == ""
-		or pr_json:match("^gh:")
-		or pr_json:match("^error:")
-	then
-		vim.notify(
-			"Failed to fetch PR info: " .. (pr_json or "unknown error"),
-			vim.log.levels.ERROR
-		)
+	if not pr_json or pr_json == "" or pr_json:match("^gh:") or pr_json:match("^error:") then
+		vim.notify("Failed to fetch PR info: " .. (pr_json or "unknown error"), vim.log.levels.ERROR)
 		return
 	end
 	-- Parse JSON using vim.fn.json_decode
 	local ok, pr = pcall(vim.fn.json_decode, pr_json)
 	if not ok or not pr then
-		vim.notify(
-			"Failed to parse PR info (invalid JSON): " .. (pr_json or ""),
-			vim.log.levels.ERROR
-		)
+		vim.notify("Failed to parse PR info (invalid JSON): " .. (pr_json or ""), vim.log.levels.ERROR)
 		return
 	end
 
@@ -100,6 +81,73 @@ function M.create_slack_pr_link()
 	end
 end
 
+function M.create_pull_request()
+	vim.ui.input({ prompt = "PR Title: " }, function(input)
+		if not input then
+			vim.notify("No input provided", vim.log.levels.INFO)
+			return
+		elseif #input == 0 then
+			vim.notify("Empty input provided", vim.log.levels.INFO)
+			return
+		end
+
+		vim.notify("Creating pull request: " .. input)
+
+		local stdout = vim.loop.new_pipe(false)
+		local stderr = vim.loop.new_pipe(false)
+
+		local output = {}
+		local errors = {}
+
+		local handle
+		local cmd = { "gh", "pr", "create", "--title", input, "--body", "" }
+
+		handle = vim.loop.spawn(cmd[1], {
+			args = vim.list_slice(cmd, 2),
+			stdio = { nil, stdout, stderr },
+		}, function(code, _)
+			-- Close handles
+			stdout:close()
+			stderr:close()
+			handle:close()
+
+			vim.schedule(function()
+				if code == 0 then
+					vim.notify("Pull request created:\n" .. table.concat(output, "\n"))
+				else
+					vim.notify("Error creating pull request:\n" .. table.concat(errors, "\n"), vim.log.levels.ERROR)
+				end
+			end)
+		end)
+
+		-- Read stdout
+		stdout:read_start(function(err, data)
+			if err then
+				vim.notify(err, vim.log.levels.ERROR)
+				return
+			end
+			if data then
+				for line in data:gmatch("[^\r\n]+") do
+					table.insert(output, line)
+				end
+			end
+		end)
+
+		-- Read stderr
+		stderr:read_start(function(err, data)
+			if err then
+				vim.notify(err, vim.log.levels.ERROR)
+				return
+			end
+			if data then
+				for line in data:gmatch("[^\r\n]+") do
+					table.insert(errors, line)
+				end
+			end
+		end)
+	end)
+end
+
 function M.ignore_this()
 	local lines = {}
 
@@ -130,10 +178,10 @@ function M.ignore_this()
 	local win_id, _ = popup.create(bufnr, {
 		title = "PR Template (tmp)",
 		highlight = "Normal",
-		line = math.floor((vim.o.lines - 20) / 2),
-		col = math.floor((vim.o.columns - 80) / 2),
-		minwidth = 80,
-		minheight = 20,
+		minwidth = 100,
+		minheight = 40,
+		line = math.floor((vim.o.lines - 40) / 2),
+		col = math.floor((vim.o.columns - 100) / 2),
 		border = true,
 	})
 
@@ -154,18 +202,16 @@ function M.ignore_this()
 			local handle
 			local cmd = { "gh", "pr", "edit", "--body-file", tmpfile }
 			vim.notify("Updating PR body")
-			handle = vim.loop.spawn(cmd[1], { args = { cmd[2], cmd[3], cmd[4], cmd[5] } },
-				function(code, _)
-					vim.schedule(function()
-						if code == 0 then
-							vim.notify("PR body updated via gh CLI")
-						else
-							vim.notify("gh pr edit failed (code " .. code .. ")", vim.log.levels.ERROR)
-						end
-					end)
-					handle:close()
-				end
-			)
+			handle = vim.loop.spawn(cmd[1], { args = { cmd[2], cmd[3], cmd[4], cmd[5] } }, function(code, _)
+				vim.schedule(function()
+					if code == 0 then
+						vim.notify("PR body updated via gh CLI")
+					else
+						vim.notify("gh pr edit failed (code " .. code .. ")", vim.log.levels.ERROR)
+					end
+				end)
+				handle:close()
+			end)
 		end,
 	})
 end
