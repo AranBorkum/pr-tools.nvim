@@ -216,4 +216,38 @@ function M.ignore_this()
 	})
 end
 
+function M.show_pr_check_summary()
+	-- Run gh pr checks with JSON output
+	local raw = vim.fn.system({ "gh", "pr", "checks", "--json", "state" })
+
+	if vim.v.shell_error ~= 0 then
+		vim.notify("Error running gh pr checks", vim.log.levels.ERROR)
+		return
+	end
+
+	local ok, checks = pcall(vim.fn.json_decode, raw)
+	if not ok or not checks then
+		vim.notify("Failed to parse gh pr checks output", vim.log.levels.ERROR)
+		return
+	end
+
+	local passed, failed, running = 0, 0, 0
+
+	for _, check in ipairs(checks) do
+		if check.state == "COMPLETED" or check.state == "SUCCESS" then
+			passed = passed + 1
+		elseif check.state == "FAILED" then
+			failed = failed + 1
+		elseif check.state == "IN_PROGRESS" or check.state == "QUEUED" or check.state == "PENDING" then
+			running = running + 1
+		end
+	end
+
+	vim.notify(
+		string.format("Checks summary:\n✅ Passed: %d\n❌ Failed: %d\n⏳ Running: %d", passed, failed, running),
+		vim.log.levels.INFO,
+		{ title = "PR Checks" }
+	)
+end
+
 return M

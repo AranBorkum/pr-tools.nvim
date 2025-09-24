@@ -34,6 +34,14 @@ function M.setup()
 			nargs = 0
 		}
 	)
+
+	vim.api.nvim_create_user_command(
+		"PullRequestCheckSummary",
+		function () api.show_pr_check_summary() end,
+		{
+			nargs = 0
+		}
+	)
 end
 
 return M
