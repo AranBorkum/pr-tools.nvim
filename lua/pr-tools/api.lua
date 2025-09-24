@@ -236,7 +236,7 @@ function M.show_pr_check_summary()
 	for _, check in ipairs(checks) do
 		if check.state == "COMPLETED" or check.state == "SUCCESS" then
 			passed = passed + 1
-		elseif check.state == "FAILED" then
+		elseif check.state == "FAILED" or check.state == "FAILURE" then
 			failed = failed + 1
 		elseif check.state == "IN_PROGRESS" or check.state == "QUEUED" or check.state == "PENDING" then
 			running = running + 1
