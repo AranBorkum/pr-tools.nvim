@@ -1,5 +1,5 @@
 local M = {}
 
-function M.setup() require("pr-tools.config").setup() end
+function M.setup(opts) require("pr-tools.config").setup(opts) end
 
 return M
