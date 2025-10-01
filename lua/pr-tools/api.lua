@@ -81,7 +81,7 @@ function M.create_slack_pr_link()
 	end
 end
 
-function M.create_pull_request()
+function M.create_pull_request(open_in_draft)
 	vim.ui.input({ prompt = "PR Title: " }, function(input)
 		if not input then
 			vim.notify("No input provided", vim.log.levels.INFO)
@@ -101,6 +101,9 @@ function M.create_pull_request()
 
 		local handle
 		local cmd = { "gh", "pr", "create", "--title", input, "--body", "" }
+		if open_in_draft then
+			table.insert(cmd, "--draft")
+		end
 
 		handle = vim.loop.spawn(cmd[1], {
 			args = vim.list_slice(cmd, 2),

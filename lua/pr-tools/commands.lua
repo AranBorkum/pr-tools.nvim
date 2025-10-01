@@ -3,6 +3,8 @@ local api = require("pr-tools.api")
 local M = {}
 
 function M.setup()
+	local opts = require("pr-tools.config").options
+
 	vim.api.nvim_create_user_command(
 		"CreateSlackPrLink",
 		function() api.create_slack_pr_link() end,
@@ -29,7 +31,7 @@ function M.setup()
 
 	vim.api.nvim_create_user_command(
 		"CreatePullRequest",
-		function () api.create_pull_request() end,
+		function () api.create_pull_request(opts.open_in_draft) end,
 		{
 			nargs = 0
 		}
