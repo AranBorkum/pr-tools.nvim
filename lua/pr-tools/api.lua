@@ -109,6 +109,14 @@ function M.mark_pr_as_ready()
 	utils.spawn_background_task(cmd, "Pull request marked as ready for review", "Error marking pull request as ready")
 end
 
+function M.mark_pr_as_draft()
+	vim.notify("Marking pull request as ready")
+
+	local cmd = { "gh", "pr", "ready", "--undo" }
+
+	utils.spawn_background_task(cmd, "Pull request marked as draft", "Error marking pull request draft")
+end
+
 function M.ignore_this()
 	local lines = {}
 

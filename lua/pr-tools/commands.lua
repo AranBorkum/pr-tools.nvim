@@ -53,6 +53,13 @@ function M.setup()
 		}
 	)
 
+	vim.api.nvim_create_user_command(
+		"MarkPullRequestAsDraft",
+		function () api.mark_pr_as_draft() end,
+		{
+			nargs = 0
+		}
+	)
 end
 
 return M
