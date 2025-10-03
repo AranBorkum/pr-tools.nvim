@@ -44,6 +44,15 @@ function M.setup()
 			nargs = 0
 		}
 	)
+
+	vim.api.nvim_create_user_command(
+		"MarkPullRequestAsReady",
+		function () api.mark_pr_as_ready() end,
+		{
+			nargs = 0
+		}
+	)
+
 end
 
 return M
