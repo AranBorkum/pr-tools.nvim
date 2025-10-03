@@ -5,11 +5,7 @@ function M.copy_link_macos(html_hex, escaped_md)
 	local cmd = "osascript"
 	local args = {
 		"-e",
-		string.format(
-			'set the clipboard to {«class HTML»:«data HTML%s», string:"%s"}',
-			html_hex,
-			escaped_md
-		),
+		string.format('set the clipboard to {«class HTML»:«data HTML%s», string:"%s"}', html_hex, escaped_md),
 	}
 	vim.loop.spawn(cmd, { args = args }, function(code)
 		if code ~= 0 then
@@ -23,35 +19,21 @@ end
 function M.copy_link_linux(emoji, md)
 	local clipboard_text = emoji .. " " .. md
 	if vim.fn.executable("xclip") == 1 then
-		vim.system(
-			{ "xclip", "-selection", "clipboard" },
-			{ stdin = clipboard_text },
-			function(obj)
-				if obj.code == 0 then
-					vim.print("PR link copied to clipboard (plain text)")
-				else
-					vim.notify(
-						"Failed to copy PR link to clipboard",
-						vim.log.levels.ERROR
-					)
-				end
+		vim.system({ "xclip", "-selection", "clipboard" }, { stdin = clipboard_text }, function(obj)
+			if obj.code == 0 then
+				vim.print("PR link copied to clipboard (plain text)")
+			else
+				vim.notify("Failed to copy PR link to clipboard", vim.log.levels.ERROR)
 			end
-		)
+		end)
 	elseif vim.fn.executable("xsel") == 1 then
-		vim.system(
-			{ "xsel", "--clipboard", "--input" },
-			{ stdin = clipboard_text },
-			function(obj)
-				if obj.code == 0 then
-					vim.print("PR link copied to clipboard (plain text)")
-				else
-					vim.notify(
-						"Failed to copy PR link to clipboard",
-						vim.log.levels.ERROR
-					)
-				end
+		vim.system({ "xsel", "--clipboard", "--input" }, { stdin = clipboard_text }, function(obj)
+			if obj.code == 0 then
+				vim.print("PR link copied to clipboard (plain text)")
+			else
+				vim.notify("Failed to copy PR link to clipboard", vim.log.levels.ERROR)
 			end
-		)
+		end)
 	else
 		vim.notify("No clipboard utility found (xclip/xsel)", vim.log.levels.ERROR)
 	end
@@ -79,7 +61,7 @@ end
 
 function M.open_single_line_floating_text_entry(prompt, width, height)
 	local buf = vim.api.nvim_create_buf(false, true)
-	vim.api.nvim_buf_set_option(buf, 'buftype', 'prompt')
+	vim.api.nvim_buf_set_option(buf, "buftype", "prompt")
 	vim.fn.prompt_setprompt(buf, prompt)
 
 	-- Get editor dimensions
@@ -94,13 +76,13 @@ function M.open_single_line_floating_text_entry(prompt, width, height)
 
 	-- Open floating window in the center
 	local win = vim.api.nvim_open_win(buf, true, {
-		relative = 'editor',
+		relative = "editor",
 		width = width,
 		height = height,
 		row = row,
 		col = col,
-		style = 'minimal',
-		border = 'single',
+		style = "minimal",
+		border = "single",
 	})
 
 	-- Start in insert mode
@@ -128,7 +110,9 @@ end
 function M.read_file_lines(path)
 	local lines = {}
 	local f = io.open(path, "r")
-	if not f then return nil end
+	if not f then
+		return nil
+	end
 	for line in f:lines() do
 		table.insert(lines, line)
 	end
@@ -153,16 +137,65 @@ function M.create_window()
 		borderchars = borderchars,
 	})
 
-	vim.api.nvim_win_set_option(
-		win.border.win_id,
-		"winhl",
-		"acwrite"
-	)
+	vim.api.nvim_win_set_option(win.border.win_id, "winhl", "acwrite")
 
 	return {
 		bufnr = bufnr,
 		win_id = Harpoon_cmd_win_id,
 	}
+end
+
+function M.spawn_background_task(cmd, success_message, failure_message)
+	local handle
+	local stdout = vim.loop.new_pipe(false)
+	local stderr = vim.loop.new_pipe(false)
+
+	local output = {}
+	local errors = {}
+
+	handle = vim.loop.spawn(cmd[1], {
+		args = vim.list_slice(cmd, 2),
+		stdio = { nil, stdout, stderr },
+	}, function(code, _)
+		-- Close handles
+		stdout:close()
+		stderr:close()
+		handle:close()
+
+		vim.schedule(function()
+			if code == 0 then
+				vim.notify(success_message .. ":\n" .. table.concat(output, "\n"))
+			else
+				vim.notify(failure_message .. ":\n" .. table.concat(errors, "\n"), vim.log.levels.ERROR)
+			end
+		end)
+	end)
+
+	-- Read stdout
+	stdout:read_start(function(err, data)
+		if err then
+			vim.notify(err, vim.log.levels.ERROR)
+			return
+		end
+		if data then
+			for line in data:gmatch("[^\r\n]+") do
+				table.insert(output, line)
+			end
+		end
+	end)
+
+	-- Read stderr
+	stderr:read_start(function(err, data)
+		if err then
+			vim.notify(err, vim.log.levels.ERROR)
+			return
+		end
+		if data then
+			for line in data:gmatch("[^\r\n]+") do
+				table.insert(errors, line)
+			end
+		end
+	end)
 end
 
 return M

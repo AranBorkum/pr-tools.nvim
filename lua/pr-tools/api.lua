@@ -93,62 +93,28 @@ function M.create_pull_request(open_in_draft)
 
 		vim.notify("Creating pull request: " .. input)
 
-		local stdout = vim.loop.new_pipe(false)
-		local stderr = vim.loop.new_pipe(false)
-
-		local output = {}
-		local errors = {}
-
-		local handle
 		local cmd = { "gh", "pr", "create", "--title", input, "--body", "" }
 		if open_in_draft then
 			table.insert(cmd, "--draft")
 		end
-
-		handle = vim.loop.spawn(cmd[1], {
-			args = vim.list_slice(cmd, 2),
-			stdio = { nil, stdout, stderr },
-		}, function(code, _)
-			-- Close handles
-			stdout:close()
-			stderr:close()
-			handle:close()
-
-			vim.schedule(function()
-				if code == 0 then
-					vim.notify("Pull request created:\n" .. table.concat(output, "\n"))
-				else
-					vim.notify("Error creating pull request:\n" .. table.concat(errors, "\n"), vim.log.levels.ERROR)
-				end
-			end)
-		end)
-
-		-- Read stdout
-		stdout:read_start(function(err, data)
-			if err then
-				vim.notify(err, vim.log.levels.ERROR)
-				return
-			end
-			if data then
-				for line in data:gmatch("[^\r\n]+") do
-					table.insert(output, line)
-				end
-			end
-		end)
-
-		-- Read stderr
-		stderr:read_start(function(err, data)
-			if err then
-				vim.notify(err, vim.log.levels.ERROR)
-				return
-			end
-			if data then
-				for line in data:gmatch("[^\r\n]+") do
-					table.insert(errors, line)
-				end
-			end
-		end)
+		utils.spawn_background_task(cmd, "Pull request created", "Error creating pull request")
 	end)
+end
+
+function M.mark_pr_as_ready()
+	vim.notify("Marking pull request as ready")
+
+	local cmd = { "gh", "pr", "ready" }
+
+	utils.spawn_background_task(cmd, "Pull request marked as ready for review", "Error marking pull request as ready")
+end
+
+function M.mark_pr_as_draft()
+	vim.notify("Marking pull request as ready")
+
+	local cmd = { "gh", "pr", "ready", "--undo" }
+
+	utils.spawn_background_task(cmd, "Pull request marked as draft", "Error marking pull request draft")
 end
 
 function M.ignore_this()
