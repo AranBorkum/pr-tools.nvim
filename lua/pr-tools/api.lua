@@ -27,9 +27,8 @@ function M.open_pr_in_browser()
 	end
 end
 
-function M.create_slack_pr_link()
-	local emoji = ":pr-outline:"
-
+function M.create_slack_pr_link(emoji)
+	local emoji = utils.emojify(emoji)
 	-- Get PR info as JSON
 	if vim.fn.executable("gh") ~= 1 then
 		vim.notify("GitHub CLI ('gh') not found. Please install it to use this feature.", vim.log.levels.ERROR)

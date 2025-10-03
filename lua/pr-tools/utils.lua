@@ -198,4 +198,17 @@ function M.spawn_background_task(cmd, success_message, failure_message)
 	end)
 end
 
+function M.emojify(word)
+	if not word:match("^:") then
+		word = ":" .. word
+	end
+
+	-- Add trailing colon if missing
+	if not word:match(":$") then
+		word = word .. ":"
+	end
+
+	return word
+end
+
 return M
