@@ -2,6 +2,7 @@ local M = {}
 
 M.options = {
 	open_in_draft = false,
+	slack_link_emoji = "pr"
 }
 
 function M.setup(opts)

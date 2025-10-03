@@ -7,7 +7,7 @@ function M.setup()
 
 	vim.api.nvim_create_user_command(
 		"CreateSlackPrLink",
-		function() api.create_slack_pr_link() end,
+		function() api.create_slack_pr_link(opts.slack_link_emoji) end,
 		{
 			nargs = 0,
 		}
