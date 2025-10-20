@@ -109,14 +109,14 @@ function M.mark_pr_as_ready()
 end
 
 function M.mark_pr_as_draft()
-	vim.notify("Marking pull request as ready")
+	vim.notify("Marking pull request as draft")
 
 	local cmd = { "gh", "pr", "ready", "--undo" }
 
 	utils.spawn_background_task(cmd, "Pull request marked as draft", "Error marking pull request draft")
 end
 
-function M.ignore_this()
+function M.edit_pull_request_description()
 	local lines = {}
 
 	-- 2️⃣ Otherwise try PR template
@@ -216,6 +216,31 @@ function M.show_pr_check_summary()
 		vim.log.levels.INFO,
 		{ title = "PR Checks" }
 	)
+end
+
+function M.switch_postgres_instance(db_instance_dir, pg_ctl)
+    if db_instance_dir == "" then
+        vim.notify(
+            "You must define the path to your postgres instances",
+            vim.log.levels.ERROR
+        )
+        return
+    end
+
+    local instances, running_instance =
+        utils.get_postgres_instances(db_instance_dir, pg_ctl)
+    local prompt = "Select postgress instance"
+    if running_instance ~= "" then
+        prompt = prompt .. " ('" .. running_instance .. "' currently running)"
+    end
+
+    local callback = function(selection)
+        utils.switch_postgres_instance(selection, db_instance_dir, pg_ctl)
+    end
+
+    vim.ui.select(instances, {
+        prompt = prompt,
+    }, callback)
 end
 
 return M
