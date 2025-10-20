@@ -1,4 +1,3 @@
-local popup = require("plenary.popup")
 local M = {}
 
 function M.copy_link_macos(html_hex, escaped_md)
@@ -120,31 +119,6 @@ function M.read_file_lines(path)
 	return lines
 end
 
-function M.create_window()
-	log.trace("_create_window()")
-	local width = 80
-	local height = 30
-	local borderchars = { "─", "│", "─", "│", "╭", "╮", "╯", "╰" }
-	local bufnr = vim.api.nvim_create_buf(false, false)
-
-	local Harpoon_cmd_win_id, win = popup.create(bufnr, {
-		title = "",
-		highlight = "",
-		line = math.floor(((vim.o.lines - height) / 2) - 1),
-		col = math.floor((vim.o.columns - width) / 2),
-		minwidth = width,
-		minheight = height,
-		borderchars = borderchars,
-	})
-
-	vim.api.nvim_win_set_option(win.border.win_id, "winhl", "acwrite")
-
-	return {
-		bufnr = bufnr,
-		win_id = Harpoon_cmd_win_id,
-	}
-end
-
 function M.spawn_background_task(cmd, success_message, failure_message)
 	local handle
 	local stdout = vim.loop.new_pipe(false)
@@ -209,6 +183,85 @@ function M.emojify(word)
 	end
 
 	return word
+end
+
+--- Wrapper for the pg_cli
+---@param command string pg_cli command
+---@param selection string selected instance to switch to
+---@param db_instance_dir string Directory containing database instances
+---@param pg_ctl string Postgres controll binary
+local function run_pg_cli_command(command, selection, db_instance_dir, pg_ctl)
+    local raw = vim.fn.system({ pg_ctl, command, "-D", db_instance_dir .. selection })
+
+    if vim.v.shell_error ~= 0 then
+        vim.notify(
+            "Error running '" .. command .. "' on '" .. selection .. "' instance.",
+            vim.log.levels.ERROR
+        )
+        return
+    end
+
+    return raw
+end
+
+--- Get all the postgres database instances on the users machine
+---@param db_instance_dir string Directory containing database instances
+---@param pg_ctl string Postgres controll binary
+---@return table names Names of the database instances
+---@return string running_instance Currently running database instance
+function M.get_postgres_instances(db_instance_dir, pg_ctl)
+    local dirs = {}
+    local running_instance = ""
+    local function list_dirs(dir_path)
+        local handle = vim.loop.fs_scandir(dir_path)
+        if not handle then
+            return dirs
+        end
+        while true do
+            local name, type = vim.loop.fs_scandir_next(handle)
+            if not name then
+                break
+            end
+            if type == "directory" then
+                local raw =
+                    vim.fn.system({ pg_ctl, "status", "-D", dir_path .. "/" .. name })
+                if raw:match("server is running") then
+                    running_instance = name
+                else
+                    table.insert(dirs, name)
+                end
+            end
+        end
+        return dirs
+    end
+
+    return list_dirs(db_instance_dir), running_instance
+end
+
+--- Switch postgres instance
+---@param selection string selected instance to switch to
+---@param db_instance_dir string Directory containing database instances
+---@param pg_ctl string Postgres controll binary
+function M.switch_postgres_instance(selection, db_instance_dir, pg_ctl)
+    local utils = require("pr-tools.utils")
+    local _, running_instance = utils.get_postgres_instances(db_instance_dir, pg_ctl)
+	if selection == "" or selection == nil then
+		return
+	end
+
+    local prompt = "Started '" .. selection .. "' instance"
+
+    if db_instance_dir:sub(-1) ~= "/" then
+        db_instance_dir = db_instance_dir .. "/"
+    end
+
+    if running_instance ~= "" then
+        run_pg_cli_command("stop", running_instance, db_instance_dir, pg_ctl)
+        prompt = "Switched from '" .. running_instance .. "' to '" .. selection .. "'"
+    end
+
+    run_pg_cli_command("start", selection, db_instance_dir, pg_ctl)
+    vim.notify(prompt, vim.log.levels.INFO)
 end
 
 return M
