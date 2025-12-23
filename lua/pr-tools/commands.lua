@@ -5,6 +5,7 @@ local M = {}
 function M.setup()
 	local pr_opts = require("pr-tools.config").options.pr
 	local db_opts = require("pr-tools.config").options.db
+	local translation_opts = require("pr-tools.config").options.translations
 
 	vim.api.nvim_create_user_command(
 		"CreateSlackPrLink",
@@ -61,7 +62,6 @@ function M.setup()
 			nargs = 0
 		}
 	)
-
 	vim.api.nvim_create_user_command(
         "SwitchPostgresInstance",
         function()
@@ -71,6 +71,14 @@ function M.setup()
             nargs = 0,
         }
     )
+
+	vim.api.nvim_create_user_command(
+		"GetTranslation",
+		function () api.get_translation(translation_opts.dir) end,
+		{
+			nargs = 0
+		}
+	)
 end
 
 return M

@@ -9,6 +9,9 @@ M.options = {
 		db_instance_dir = "",
 		pg_ctl = "pg_ctl",
 	},
+	translations = {
+		dir = "src/octoenergy/plugins/common/i18n/locales/",
+	}
 }
 
 function M.setup(opts)
