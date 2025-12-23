@@ -243,4 +243,34 @@ function M.switch_postgres_instance(db_instance_dir, pg_ctl)
     }, callback)
 end
 
+---@param translation_dir string -- Directory containing translation files
+---@return nil
+function M.get_translation(translation_dir)
+	local row, col = unpack(vim.api.nvim_win_get_cursor(0))
+	local cur_file = vim.api.nvim_buf_get_name(0)
+	local line = vim.api.nvim_get_current_line()
+
+	local word_under_curser = utils.get_word_under_curser_between_quotes(line, col)
+	if not word_under_curser then
+		vim.notify("No quoted string under cursor", vim.log.levels.ERROR)
+		return
+	end
+	
+	local file = utils.ripgrep_string_in_dir(translation_dir, word_under_curser)
+	if not file then
+		vim.notify("No files found containing: " .. word_under_curser, vim.log.levels.ERROR)
+		return
+	end
+	
+	local matches = utils.get_all_string_matches_in_file(file)
+	if #matches == 0 then
+		vim.notify("No valid matches found", vim.log.levels.ERROR)
+		return
+	end
+	
+	local closest = utils.get_closest_string_match(cur_file, row, matches)
+	vim.cmd(string.format("vsplit +%d %s", closest.line, closest.filename))
+	vim.fn.cursor(closest.line, closest.col)
+end
+
 return M

@@ -264,4 +264,77 @@ function M.switch_postgres_instance(selection, db_instance_dir, pg_ctl)
     vim.notify(prompt, vim.log.levels.INFO)
 end
 
+---@param line string
+---@param col integer -- 0-based column index (from nvim_win_get_cursor)
+---@return string|nil -- content between quotes under cursor, if any
+function M.get_word_under_curser_between_quotes(line, col)
+	local found = nil
+	for start_idx, quote, content in line:gmatch("()(['\"])(.-)%2") do
+		local end_idx = start_idx + #quote + #content + #quote - 1
+		if col + 1 >= start_idx and col + 1 <= end_idx then
+			found = content
+			break
+		end
+	end
+	return found
+end
+
+---@param search_dir string -- Directory to search in
+---@param word_in_quotes string -- Literal string to search for
+---@return string|nil -- ripgrep output, or nil if the command failed
+function M.ripgrep_string_in_dir(search_dir, word_in_quotes)
+	local handle = io.popen(string.format("rg --vimgrep '%s' %s", word_in_quotes, search_dir))
+	local result = handle:read("*a")
+	handle:close()
+	return result
+end
+
+---@class StringMatch
+---@field filename string
+---@field line integer
+---@field col integer
+
+---@param result string -- ripgrep --vimgrep output
+---@return StringMatch[]
+function M.get_all_string_matches_in_file(result)
+	local matches = {}
+	for filename, line_num, col_num in result:gmatch("([^:]+):(%d+):(%d+):") do
+		table.insert(matches, {
+			filename = filename,
+			line = tonumber(line_num),
+			col = tonumber(col_num),
+		})
+	end
+	return matches
+end
+
+---@class StringMatch
+---@field filename string
+---@field line integer
+---@field col integer
+
+---@param cur_file string
+---@param row integer -- 1-based row (from nvim_win_get_cursor)
+---@param matches StringMatch[]
+---@return StringMatch
+function M.get_closest_string_match(cur_file, row, matches)
+	local function distance(m)
+		if cur_file == m.filename then
+			return math.abs(row - m.line)
+		else
+			return math.huge -- other files are less preferred
+		end
+	end
+
+	-- Find the closest match
+	table.sort(matches, function(a, b)
+		return distance(a) < distance(b)
+	end)
+
+	return matches[1]
+end
+
+
+
+
 return M
