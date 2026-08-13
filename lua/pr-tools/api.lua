@@ -5,26 +5,7 @@ local popup = require("plenary.popup")
 local M = {}
 
 function M.open_pr_in_browser()
-	local pr_json =
-		vim.fn.system("gh pr view --json title,number,headRepository,headRepositoryOwner,url,additions,deletions")
-
-	local ok, pr = pcall(vim.fn.json_decode, pr_json)
-	if not ok or not pr then
-		vim.notify("Failed to parse PR info (invalid JSON): " .. (pr_json or ""), vim.log.levels.ERROR)
-		return
-	end
-	local sysname = vim.loop.os_uname().sysname
-
-	if sysname == "Darwin" then
-		-- macOS
-		vim.fn.jobstart({ "open", pr.url }, { detach = true })
-	elseif sysname == "Windows_NT" then
-		-- Windows
-		vim.fn.jobstart({ "cmd.exe", "/c", "start", pr.url }, { detach = true })
-	else
-		-- Linux and others
-		vim.fn.jobstart({ "xdg-open", pr.url }, { detach = true })
-	end
+	vim.fn.system("gh pr view -w")
 end
 
 function M.create_slack_pr_link(emoji)
